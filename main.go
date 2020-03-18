@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,6 +22,8 @@ func main() {
 	execute := flag.Bool("execute", false, "Perform migration of the messages to destination queue")
 	maxMessageAge := flag.Duration("max-age", time.Hour*12, "Duration of stale messages we are willing to tolerate and republish")
 	limit := flag.Int("limit", 10, "Duration of stale messages we are willing to tolerate and republish")
+	filter := flag.String("filter", "", "Provides a string filter that can be used to filter the message body")
+	verbose := flag.Bool("verbose", false, "Will print additional information for every message to be transmitted")
 	flag.Parse()
 
 	var destQueueURL *sqs.GetQueueUrlOutput
@@ -91,9 +94,12 @@ func main() {
 			sentTimestamp, _ := strconv.ParseInt(*message.Attributes["SentTimestamp"], 10, 64)
 			timeSent := time.Unix(sentTimestamp/1000, 0)
 			hoursSince := runTime.Sub(timeSent)
-			if hoursSince < *maxMessageAge {
+			if hoursSince < *maxMessageAge && strings.Contains(*message.Body, *filter) {
 				count++
 				logger.Printf("Staging message Age: %s ID: %s Receipt: %s\n", runTime.Sub(timeSent), *message.MessageId, (*message.ReceiptHandle)[:15])
+				if *verbose {
+					logger.Printf("%s - %s\n", *message.MessageId, *message.Body)
+				}
 				messagesToProcess = append(messagesToProcess, &sqs.SendMessageBatchRequestEntry{
 					Id:          message.MessageId,
 					MessageBody: message.Body,
