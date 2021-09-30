@@ -1,4 +1,4 @@
-module m1finance.com/infrastructures/sqs-utils
+module github.com/jrnt30/aws-utils
 
 go 1.12
 
